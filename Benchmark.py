@@ -11,9 +11,9 @@ logging.basicConfig()
 logger = logging.getLogger('Benchmark')
 logger.setLevel(logging.INFO)
 
-class Benchmark:
 
-    def __init__(self, benchmarkName = None):
+class Benchmark:
+    def __init__(self, benchmarkName=None):
         self.benchmarkName = benchmarkName
         self.__start__()
 
@@ -37,4 +37,3 @@ class Benchmark:
             logger.info(benchmarkTask + " -> {}s".format("%.2f" % (diff)))
 
         self.__start__()
-
