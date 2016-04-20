@@ -120,7 +120,7 @@ class TextAnalyzer:
 
     # Normalize the frequencies with Tf-idf, this seems to shave off half the training time!
     def genTfIdf(self):
-        transformer = TfidfTransformer(use_idf=False)
+        transformer = TfidfTransformer(use_idf=True)
         transformer.fit_transform(self.dataset.X)
         self.dataset.X = transformer.transform(self.dataset.X)
 
