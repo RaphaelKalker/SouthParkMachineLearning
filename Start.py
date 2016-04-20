@@ -83,11 +83,17 @@ class TextAnalyzer:
         # names = pandas.unique(self.dataFrame[CHARACTER].values)
         # Utils.printListItems(names)
 
+        # if True:
+        #     self.dataFrame = self.dataFrame[(self.dataFrame.Character.isin(nameFilter))]
+
         if nameFilter:
-            self.dataFrame = self.dataFrame[(self.dataFrame.Character.isin(nameFilter))]
+            self.dataFrame[CHARACTER] = [self.applyNameFilter(x, nameFilter) for x in self.dataFrame.Character]
 
         self.dataset.X = self.dataFrame[[LINE]].values.ravel()
         self.dataset.Y = self.dataFrame[[CHARACTER]].values.ravel()
+
+    def applyNameFilter(self, name, filter):
+        return name if filter is None or name in filter else 'Other'
 
     # Filters out uneeded stuff and produces an array of words
     def cleanData(self):
