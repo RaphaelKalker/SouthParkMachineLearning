@@ -144,10 +144,9 @@ class TextAnalyzer:
         self.dataset.Y_test = Y_test
 
     def doSVMwithGridSearch(self):
-        text_clf = Pipeline([(
-            'clf',
-            SGDClassifier(shuffle=False, n_jobs=-1, loss='hinge', penalty='l2',
-                          alpha=1e-5, n_iter=10, random_state=42)), ])
+        # text_clf = Pipeline([(
+        #     'clf',
+        #     SGDClassifier(shuffle=False, n_jobs=-1, n_iter=10, random_state=42)), ])
 
         parameters = {
             # 'seed': [0],
@@ -156,10 +155,11 @@ class TextAnalyzer:
             'alpha': [0.001, 0.0001, 0.00001, 0.000001]
         }
 
-        self.svmClf = GridSearchCV(SGDClassifier(), parameters, n_jobs=-1)
-        self.svmClf.fit(self.dataset.X_train, self.dataset.Y_train)
-        predicted = self.svmClf.predict(self.dataset.X_test)
-        self.saveResults(predicted, 'SVM new')
+        classifier = GridSearchCV(SGDClassifier(), parameters, n_jobs=-1)
+        return classifier
+        # self.svmClf.fit(self.dataset.X_train, self.dataset.Y_train)
+        # predicted = self.svmClf.predict(self.dataset.X_test)
+        # self.saveResults(predicted, 'SVM new')
 
     def classifyData(self, algo=None, saveModel=False):
         bench = Benchmark()
@@ -167,8 +167,8 @@ class TextAnalyzer:
         prediction = None
 
         if algo == SVM_SGD:
-            classifier = SGDClassifier(loss='hinge', penalty='l2', alpha=1e-3, n_iter=5, random_state=42)
-
+            # classifier = SGDClassifier(n_jobs=-1, loss='perceptron', warm_start=True, penalty='l2', alpha=1e-3, n_iter=5, random_state=42)
+            classifier = self.doSVMwithGridSearch()
         elif algo == NEURAL_NETWORK:
             classifier = sknn.mlp.Classifier(
                 layers=[ #Sigmoid, Tanh, Rectifier, Softmax, Linear
