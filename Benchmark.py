@@ -1,5 +1,3 @@
-from IPython.core.display import Math
-
 __author__ = 'Raphael'
 
 import logging
@@ -32,7 +30,7 @@ class Benchmark:
         if diff > 60:
             minutes = (diff / 60) % 60
             seconds = diff % 60
-            logger.info(benchmarkTask + "{} -> {}:{} min".format(benchmarkTask, Math.round(minutes), round(seconds, 0)))
+            logger.info(benchmarkTask + "{} -> {}:{} min".format(benchmarkTask, round(minutes, 0), round(seconds, 0)))
         else:
             logger.info(benchmarkTask + " -> {}s".format("%.2f" % (diff)))
 
