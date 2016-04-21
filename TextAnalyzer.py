@@ -11,7 +11,6 @@ import os
 import multiprocessing
 import matplotlib.pyplot as plt
 
-
 from Benchmark import Benchmark
 from DataSanitzer import DataSanitizer
 from Dataset import Dataset
@@ -32,8 +31,8 @@ logging.basicConfig()
 logger = logging.getLogger('TextAnalzer')
 logger.setLevel(logging.INFO)
 
-REVIEW_DATA = './data/Season-1.csv'
-# REVIEW_DATA = './data/All-seasons.csv'
+# REVIEW_DATA = './data/Season-1.csv'
+REVIEW_DATA = './data/All-seasons.csv'
 
 LINE = 'Line'
 SEASON = 'Season'
@@ -43,7 +42,7 @@ CHARACTER_PREDICTION = 'Character Prediction'
 DEBUG = True
 N_FOLDS = 10
 NR_FOREST_ESTIMATORS = 100
-MAX_FEATURES = 10000
+MAX_FEATURES = 50000
 TEST_RATIO = 0.25
 X_TRAINING = 'training_features'
 Y_TRAINING = 'training_labels'
@@ -52,12 +51,14 @@ Y_TESTING = 'testing_labels'
 X_TRAINING_BAG_OF_WORDS = 'features_bagofwords'
 X_TESTING_BAG_OF_WORDS = 'testing_features_bagofwords'
 GENSIM_MODEL = 'gen_sim_model'
+
+NN_LEARNING_RATE = 0.002
+SAVE_MODEL = False
+
 NAIVE_BAYES = 'Naive_Bayes'
 SVM_SGD = 'SVM_SGD'
 RANDOM_FOREST = 'Random_Forests'
 NEURAL_NETWORK = 'Neural_Network_MLP'
-NN_LEARNING_RATE = 0.002
-SAVE_MODEL = False
 
 
 class TextAnalyzer:
@@ -156,6 +157,7 @@ class TextAnalyzer:
         }
 
         classifier = GridSearchCV(SGDClassifier(), parameters, n_jobs=-1)
+
         return classifier
         # self.svmClf.fit(self.dataset.X_train, self.dataset.Y_train)
         # predicted = self.svmClf.predict(self.dataset.X_test)
@@ -167,14 +169,16 @@ class TextAnalyzer:
         prediction = None
 
         if algo == SVM_SGD:
-            # classifier = SGDClassifier(n_jobs=-1, loss='perceptron', warm_start=True, penalty='l2', alpha=1e-3, n_iter=5, random_state=42)
-            classifier = self.doSVMwithGridSearch()
+            classifier = SGDClassifier(n_jobs=-1, loss='hinge', penalty='l2', alpha=1e-5, n_iter=50, random_state=42)
+            # classifier = self.doSVMwithGridSearch()
         elif algo == NEURAL_NETWORK:
             classifier = sknn.mlp.Classifier(
-                layers=[ #Sigmoid, Tanh, Rectifier, Softmax, Linear
-                    sknn.mlp.Layer("Tanh", units=300),
-                    # sknn.mlp.Layer("Linear", units=300),
-                    sknn.mlp.Layer("Softmax")],
+                layers=[  # Sigmoid, Tanh, Rectifier, Softmax, Linear
+                          # sknn.mlp.Layer("Tanh", units=300),
+
+                          (sknn.mlp.Layer("Linear", units=300) for i in range(2)),
+                          sknn.mlp.Layer("Softmax"),
+              ],
                 learning_rate=NN_LEARNING_RATE,
                 n_iter=10,
                 learning_momentum=.9,
@@ -199,12 +203,13 @@ class TextAnalyzer:
             bench.end('Dumping Classifier Data')
 
         prediction = classifier.predict(self.dataset.X_test)
+        score = classifier.score(self.dataset.X_test, self.dataset.Y_test)
         bench.end('Predicting Data using: ' + algo)
 
         if algo == NEURAL_NETWORK:
             prediction = [x[0] for x in prediction]
 
-        self.saveResults(prediction, algo)
+        self.saveResults(prediction, algo, score=score)
 
     # Convenience method for printing out a panda dataframe
     def printDataFrame(self, dataframe):
@@ -222,24 +227,25 @@ class TextAnalyzer:
     # def kFoldIndices(self):
     #     return KFold(n=self.dataFrame.shape[0], n_folds = N_FOLDS)
 
-    def saveStats(self):
-        frame = pandas.DataFrame(
-            data={
-                'Max Features': [MAX_FEATURES, ],
-                'Forest Estimators': [NR_FOREST_ESTIMATORS, ],
-                'Accuracy': [self.accuracy]
-            }
-        )
+    # def saveStats(self):
+    #     frame = pandas.DataFrame(
+    #         data={
+    #             'Max Features': [MAX_FEATURES, ],
+    #             'Forest Estimators': [NR_FOREST_ESTIMATORS, ],
+    #             'Accuracy': [self.accuracy]
+    #         }
+    #     )
+    #
+    #     frame = frame.transpose()
+    #
+    #     self.printDataFrame(frame)
+    #
+    #     frame.to_csv("./results/Trail Stats {}".format(time.time()), index=True)
+    #
+    #     # self.printDataFrame(frame)
 
-        frame = frame.transpose()
+    def saveResults(self, prediction, classifierName, **kwargs):
 
-        self.printDataFrame(frame)
-
-        frame.to_csv("./results/Trail Stats {}".format(time.time()), index=True)
-
-        # self.printDataFrame(frame)
-
-    def saveResults(self, prediction, classifierName):
         output = pandas.DataFrame(
             data={
                 # LINE: self.dataset.X_test_original,
@@ -248,13 +254,8 @@ class TextAnalyzer:
             }
         )
 
-        output.to_csv("{}.csv".format(classifierName), index=False)
-        self.printAccuracy(self.dataset.Y_test, prediction)
-        pass
-
-    def printAccuracy(self, original, prediction):
-        self.accuracy = np.mean(original == prediction)
-        logger.info('Accuracy: {} %'.format(round(self.accuracy * 100, 3)))
+        output.to_csv("./results/{}.csv".format(classifierName), index=False)
+        logger.info('Accuracy: {} %'.format(round(kwargs['score'] * 100, 3)))
 
     def optimizeParams(self):
         self.params = {
@@ -264,39 +265,38 @@ class TextAnalyzer:
         }
 
 
+if __name__ == '__main__':
+    bench = Benchmark()
+
+    anal = TextAnalyzer(REVIEW_DATA)
+    bench.end('Initializing')
+
+    anal.createDataFrame(nameFilter=['Kyle', 'Stan', 'Kenny', 'Cartman', 'Butters', 'Jimmy',
+                                     'Timmy'])
+    bench.end('Reading CSV')
+
+    anal.cleanData()  # Prepare data in a format that is good for scikitlearn
+    bench.end('Cleaning Data')
+
+    anal.vectorizeData(scheme='bagofwords')
+    bench.end('Generating Bag of Words Representation')
+
+    anal.genTfIdf()  #
+    bench.end('Generating TF-IDF Representation')
+
+    anal.splitData()
+    bench.end('Generating Test and Training Data')
+
+    anal.classifyData(NAIVE_BAYES, saveModel=SAVE_MODEL)
 
 
-bench = Benchmark()
 
-anal = TextAnalyzer(REVIEW_DATA)
-bench.end('Initializing')
+    # plt.scatter(anal.dataset.X_train, anal.dataset.Y_train, color='black')
+    # plt.show
 
-anal.createDataFrame(nameFilter=['Kyle', 'Stan', 'Kenny', 'Cartman', 'Butters', 'Jimmy',
-                                 'Timmy'])
-bench.end('Reading CSV')
+    # anal.optimizeParams()
 
-anal.cleanData()  # Prepare data in a format that is good for scikitlearn
-bench.end('Cleaning Data')
 
-# anal.vectorizeData(scheme='word2vec')
-# bench.end('Creating Word 2 Vec')
+    # anal.doSVM()
 
-anal.vectorizeData(scheme='bagofwords')
-bench.end('Generating Bag of Words Representation')
-
-anal.genTfIdf()  #
-bench.end('Generating TF-IDF Representation')
-
-anal.splitData()
-bench.end('Generating Test and Training Data')
-
-# plt.scatter(anal.dataset.X_train, anal.dataset.Y_train, color='black')
-# plt.show
-
-# anal.optimizeParams()
-
-anal.classifyData(NAIVE_BAYES, saveModel=SAVE_MODEL)
-
-# anal.doSVM()
-
-# anal.saveStats()
+    # anal.saveStats()
